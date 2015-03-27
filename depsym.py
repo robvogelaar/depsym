@@ -49,28 +49,6 @@ def has_dependency(fpath, dependency):
     return (ret > 0)
 
 
-##def matching_symbols(fpath, match):
-##
-##    all_symbols = "\t"
-##
-##    linux_cmd = "/usr/bin/mklibs-readelf --print-symbols-undefined %s"%fpath
-##
-##    try:
-##        stdout = os.popen(linux_cmd)
-##
-##        for foundsymbol in stdout:
-##
-##            if foundsymbol.lower().find(match.lower()) > -1 :
-##
-##                all_symbols = "%s%s\n\t"%(all_symbols, demangle(foundsymbol[0:foundsymbol.find(' ')]))
-##
-##    except:
-##        print "Unexpected error:", sys.exc_info()[0]
-##
-##    return all_symbols
-
-
-
 def matching_symbols(fpath, match):
 
     all_symbols = []
@@ -110,33 +88,52 @@ def demangle(names):
 
 
 
-def dofile(dir, file, options, dependency, symbol):
+def dofile(dir, file, options, name, dependency, symbol):
 
     if is_symlink(os.path.join(dir,file)):
         pass
         # print 'sym:' + os.path.join(dir, file)
 
     else:
-        if options.exe:
+        if options.bins:
             if is_exe(os.path.join(dir,file)):
 
                 if not has_dependency(os.path.join(dir, file), dependency):
                     pass
                 else:
-                    print 'exe:(%s)(%s)'%(dependency, symbol) + os.path.join(dir, file)
+                    thename = name
+                    thedependency = dependency
+                    thesymbol = symbol
+                    if thename == "":
+                        thename = "*"
+                    if thedependency == "":
+                        thedependency = "*"
+                    if thesymbol == "":
+                        thesymbol = "*"
+
+                    print 'exe:(%s)(%s)(%s)'%(thename, thedependency, thesymbol) + os.path.join(dir, file)
 
                     for item in matching_symbols(os.path.join(dir, file), symbol):
                         print "\t", item
 
 
-
-        if options.so:
+        if options.libs:
             if is_lib(os.path.join(dir,file)):
 
                 if not has_dependency(os.path.join(dir, file), dependency):
                     pass
                 else:
-                    print '.so:(%s)(%s)'%(dependency, symbol) + os.path.join(dir, file)
+                    thename = name
+                    thedependency = dependency
+                    thesymbol = symbol
+                    if thename == "":
+                        thename = "*"
+                    if thedependency == "":
+                        thedependency = "*"
+                    if thesymbol == "":
+                        thesymbol = "*"
+
+                    print '.so:(%s)(%s)(%s)'%(thename, thedependency, thesymbol) + os.path.join(dir, file)
                     for item in matching_symbols(os.path.join(dir, file), symbol):
                         print "\t", item
 
@@ -158,14 +155,17 @@ def main():
                       action = "store", type = "string",
                       help = "symbol to check")
 
+    parser.add_option("-n", "--name", dest = "name",
+                      action = "store", type = "string",
+                      help = "name")
 
-    parser.add_option("--exe",
-                              dest = "exe", action = "store_true",
-                              help = "manage the networking ")
+    parser.add_option("-b",
+                      dest = "bins", action = "store_true",
+                      help = "check binaries (executables)")
 
-    parser.add_option("--so",
-                              dest = "so", action = "store_true",
-                              help = "manage the networking ")
+    parser.add_option("-l",
+                      dest = "libs", action = "store_true",
+                      help = "check libraries")
 
 
 
@@ -174,17 +174,28 @@ def main():
     if not options.rootfs:
         parser.error('rootfs not given')
 
+    if not options.bins and not options.bins:
+        parser.error('have to specify -b and or -l')
 
     if not options.dependency:
         dependency = ""
     else:
         dependency = options.dependency
 
+    if not options.name:
+        name = ""
+    else:
+        name = options.name
+
 
     if not options.symbol:
         symbol = ""
     else:
         symbol = options.symbol
+
+
+    print 'name =',
+    print name
 
     print 'dependency =',
     print dependency
@@ -193,13 +204,16 @@ def main():
     print symbol
 
 
+
     if os.path.isdir(options.rootfs):
         for dir, dirs, files in os.walk(options.rootfs):
             for file in files:
-                dofile(dir, file, options, dependency, symbol)
+
+                if file.lower().find(name.lower()) > -1:
+                    dofile(dir, file, options, name, dependency, symbol)
 
     else:
-        dofile([], options.rootfs, options, dependency, symbol)
+        dofile([], options.rootfs, options, name, dependency, symbol)
 
 
 if __name__ == "__main__":
