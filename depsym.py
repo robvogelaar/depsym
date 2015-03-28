@@ -174,7 +174,7 @@ def main():
     if not options.rootfs:
         parser.error('rootfs not given')
 
-    if not options.bins and not options.bins:
+    if not options.bins and not options.libs:
         parser.error('have to specify -b and or -l')
 
     if not options.dependency:
