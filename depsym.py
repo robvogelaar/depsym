@@ -26,14 +26,14 @@ def is_lib(fpath):
 
 
 
-def has_dependency(fpath, dependency):
+def has_dependency(fpath, dependency, provided_undefined):
 
     if dependency == "":
         return 1
 
     all_libs = ""
 
-    linux_cmd = "/usr/bin/mklibs-readelf --print-needed %s"%fpath
+    linux_cmd = "/usr/bin/mklibs-readelf %s %s"%(provided_undefined,fpath)
 
     try:
         stdout = os.popen(linux_cmd)
@@ -49,11 +49,11 @@ def has_dependency(fpath, dependency):
     return (ret > 0)
 
 
-def matching_symbols(fpath, match):
+def matching_symbols(fpath, match, provided_undefined):
 
     all_symbols = []
 
-    linux_cmd = "/usr/bin/mklibs-readelf --print-symbols-undefined %s"%fpath
+    linux_cmd = "/usr/bin/mklibs-readelf %s %s"%(provided_undefined,fpath)
 
     try:
         stdout = os.popen(linux_cmd)
@@ -88,7 +88,7 @@ def demangle(names):
 
 
 
-def dofile(dir, file, options, name, dependency, symbol):
+def dofile(dir, file, options, name, dependency, symbol, provided_undefined):
 
     if is_symlink(os.path.join(dir,file)):
         pass
@@ -98,7 +98,7 @@ def dofile(dir, file, options, name, dependency, symbol):
         if options.bins:
             if is_exe(os.path.join(dir,file)):
 
-                if not has_dependency(os.path.join(dir, file), dependency):
+                if not has_dependency(os.path.join(dir, file), dependency, provided_undefined):
                     pass
                 else:
                     thename = name
@@ -113,14 +113,14 @@ def dofile(dir, file, options, name, dependency, symbol):
 
                     print 'exe:(%s)(%s)(%s)'%(thename, thedependency, thesymbol) + os.path.join(dir, file)
 
-                    for item in matching_symbols(os.path.join(dir, file), symbol):
+                    for item in matching_symbols(os.path.join(dir, file), symbol, provided_undefined):
                         print "\t", item
 
 
         if options.libs:
             if is_lib(os.path.join(dir,file)):
 
-                if not has_dependency(os.path.join(dir, file), dependency):
+                if not has_dependency(os.path.join(dir, file), dependency, provided_undefined):
                     pass
                 else:
                     thename = name
@@ -134,7 +134,7 @@ def dofile(dir, file, options, name, dependency, symbol):
                         thesymbol = "*"
 
                     print '.so:(%s)(%s)(%s)'%(thename, thedependency, thesymbol) + os.path.join(dir, file)
-                    for item in matching_symbols(os.path.join(dir, file), symbol):
+                    for item in matching_symbols(os.path.join(dir, file), symbol, provided_undefined):
                         print "\t", item
 
 
@@ -167,6 +167,13 @@ def main():
                       dest = "libs", action = "store_true",
                       help = "check libraries")
 
+    parser.add_option("-u",
+                      dest = "undefined", action = "store_true",
+                      help = "undefined")
+
+    parser.add_option("-p",
+                      dest = "provided", action = "store_true",
+                      help = "provided")
 
 
     (options, args) = parser.parse_args()
@@ -204,16 +211,21 @@ def main():
     print symbol
 
 
+    provided_undefined = "-u"
+
+    if options.provided:
+        provided_undefined = "-p"
+
 
     if os.path.isdir(options.rootfs):
         for dir, dirs, files in os.walk(options.rootfs):
             for file in files:
 
                 if file.lower().find(name.lower()) > -1:
-                    dofile(dir, file, options, name, dependency, symbol)
+                    dofile(dir, file, options, name, dependency, symbol, provided_undefined)
 
     else:
-        dofile([], options.rootfs, options, name, dependency, symbol)
+        dofile([], options.rootfs, options, name, dependency, symbol, provided_undefined)
 
 
 if __name__ == "__main__":
